@@ -37,9 +37,9 @@ object Utils {
     //print board
     def printBoard(board: Board, lines: Int, cols: Int): Unit = {
         val colIndexes = (0 until cols).toList      //Create list of numbers for each colunm
-        val headderLetters = (colIndexes foldRight ("")){ (c, acc) =>   //foldRight to turn numbers in letters and assemble them  in a string
-            val letter = ('A' + c).toChar
-            " " + letter + " " + acc
+        val headderLetters = (colIndexes foldRight ("")){ (c, acc) =>   //foldRight to put numbers in right place
+            val letter = if (c < 10) s" $c " else s"$c "
+            letter + acc
             }
         println("   " + headderLetters)
         println(buildAllLines(0, lines, cols, board))       //build all board
@@ -47,5 +47,8 @@ object Utils {
 
     //print game over
     def printGameOver(): Unit = println("\n=== GAME OVER ===")
+
+    //print program over
+    def printProgramOver(): Unit = println("\n== PROGRAM OVER===")
     
 }
