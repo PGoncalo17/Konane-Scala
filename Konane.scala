@@ -16,7 +16,7 @@ object Konane extends App{
 
     val r = MyRandom(System.currentTimeMillis())
 
-    mainLoop(GameState(0, 0), r)
+    mainLoop(GameState(0, 0), r)    //runs all the code
 
     //main loop
     @tailrec
@@ -68,9 +68,9 @@ object Konane extends App{
     //game loop
     @tailrec
     def gameLoop(board:Board, lstOpenCoords:List[Coord2D], player:Stone, r:RandomWithState, lines:Int, cols:Int): Unit = {
-        val (resultBoard, newR, nextLstOpenCoords, coordFrom, coordTo) = playRandomly(board, r, player, lstOpenCoords, randomMove)  
+        val (resultBoard, newR, nextLstOpenCoords, coordFrom, coordTo) = playRandomly(board, r, player, lstOpenCoords, randomMove)  //tries to make a move
         resultBoard match{
-            case None =>    //case there are no more movements
+            case None =>    //case there are no more valid movements
                 val winner = if(player == Stone.Black) "White" else "Black"
                 println(s"\nNo more moves for ${player}. $winner WINS!")
                 printGameOver()
@@ -85,11 +85,12 @@ object Konane extends App{
         }
     }
 
+    ///====In-Game Functions====
 
     //choose a random move to do
     def randomMove(lstOpenCoords: List[Coord2D], rand: RandomWithState): (Coord2D, RandomWithState) = {
        val (randPos, newRand) = rand.nextInt(lstOpenCoords.length)  //choose random pos in lstOpenCoords
-       val chosenCoord = lstOpenCoords(randPos)  
+       val chosenCoord = lstOpenCoords(randPos)  //gets the correspondent coord
        (chosenCoord, newRand)
     }
 
@@ -117,32 +118,36 @@ object Konane extends App{
         rangeOk && validStoneToPlay && validPosToGo && validOppMid && (coordFrom._1 == coordTo._1 || coordFrom._2 == coordTo._2)
     }                                                                  //makes it impossible to jump in diagonals
 
-    //Does a random play
+    //Does a random play                                                                            //f equals to randomMove(...)
     def playRandomly(board: Board, r: RandomWithState, player: Stone, lstOpenCoords: List[Coord2D], f: (List[Coord2D], RandomWithState) => (Coord2D, RandomWithState)): (Option[Board], RandomWithState, List[Coord2D], Option[Coord2D], Option[Coord2D]) = {
-        //intern function that tries to run to all the open coords
-        def tryAllOpenCoords(coords: List[Coord2D], currentR: RandomWithState):(Option[Board], RandomWithState, List[Coord2D], Option[Coord2D], Option[Coord2D])  = coords match {
-            case Nil => (None, currentR, lstOpenCoords, None, None)     //case there are no open coords
-            case head::tail =>
-                val playablePiece = findPlayabalePiece(board.toList, head, player, board)       //find a playable piece
-                playablePiece match {
-                    case None => tryAllOpenCoords(tail, currentR)       //case there are no coords to go to
-                    case Some(from) =>
-                        val (newBoard, newLstOpenCoords) = play(board, player, from, head, lstOpenCoords)
-                        (newBoard, currentR, newLstOpenCoords, Some(from), Some(head))
-                }
+        if(lstOpenCoords.isEmpty){ (None, r, Nil, None, None)   //base case: there iso no open coords
+        } else{
+            val (chosenCoord, newR) = f(lstOpenCoords, r)   //chooses a random coord in lstOpenCoords
+            val playablePiece = findPlayablePiece(board.toList, chosenCoord, player, board)   //finds a playable piece
+            
+            playablePiece match {
+                case None => //playable piece can't go to the open coord
+                    val remaining = lstOpenCoords.filter(_ != chosenCoord)
+                    playRandomly(board, newR, player, remaining, f)
+                case Some(from) =>  //valid play
+                    val (newBoard, newLstOpenCoords) = play(board, player, from, chosenCoord, lstOpenCoords)
+                    (newBoard, newR, newLstOpenCoords, Some(from), Some(chosenCoord))
+            }
+
         }
-        tryAllOpenCoords(lstOpenCoords, r)
     }
         //aux to playRandomly - find a playable piece
-    def findPlayabalePiece(pieces: List[(Coord2D, Stone)], coordTo:Coord2D, player:Stone, board:Board):Option[Coord2D] = pieces match {
+    def findPlayablePiece(pieces: List[(Coord2D, Stone)], coordTo:Coord2D, player:Stone, board:Board):Option[Coord2D] = pieces match {
         case Nil => None
         case (coordFrom, stone)::tail =>
             val coordMiddle = ((coordFrom._1 + coordTo._1)/2, (coordFrom._2 + coordTo._2)/2)
             if(stone == player && validPlay(board, coordFrom, coordTo, coordMiddle, player))
                 Some(coordFrom)
             else
-                findPlayabalePiece(tail, coordTo, player, board)
+                findPlayablePiece(tail, coordTo, player, board)
     }
+
+    //====Initialize Board====
 
     //Generate pieces for board
     def generatePieces(lines:Int, cols:Int, maxLines:Int, maxCols:Int):List[(Coord2D, Stone)] = {
