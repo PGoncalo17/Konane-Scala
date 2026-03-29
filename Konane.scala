@@ -100,7 +100,7 @@ object Konane extends App{
         if(!validPlay(board, coordFrom, coordTo, coordMiddle, player)){ (None, lstOpenCoords)
         }else{
             val newBoard = board - coordFrom - coordMiddle + (coordTo -> player)    //Update the board
-            val addToLstOpenCoords = coordFrom::coordMiddle::lstOpenCoords          //Add cordFrom and coordMiddle to lstOpenCoords
+            val addToLstOpenCoords = coordFrom::coordMiddle::lstOpenCoords          //Add coordFrom and coordMiddle to lstOpenCoords
             val removeToOpenCoords = addToLstOpenCoords.filter(c => c != coordTo)   //Remove coordTo to lstOpenCoords
             (Some(newBoard), removeToOpenCoords)     
         }
