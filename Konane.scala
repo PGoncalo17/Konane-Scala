@@ -119,33 +119,46 @@ object Konane extends App{
     }                                                                  //makes it impossible to jump in diagonals
 
     //Does a random play                                                                            //f equals to randomMove(...)
-    def playRandomly(board: Board, r: RandomWithState, player: Stone, lstOpenCoords: List[Coord2D], f: (List[Coord2D], RandomWithState) => (Coord2D, RandomWithState)): (Option[Board], RandomWithState, List[Coord2D], Option[Coord2D], Option[Coord2D]) = {
-        if(lstOpenCoords.isEmpty){ (None, r, Nil, None, None)   //base case: there iso no open coords
-        } else{
-            val (chosenCoord, newR) = f(lstOpenCoords, r)   //chooses a random coord in lstOpenCoords
-            val playablePiece = findPlayablePiece(board.toList, chosenCoord, player, board)   //finds a playable piece
-            
-            playablePiece match {
-                case None => //playable piece can't go to the open coord
-                    val remaining = lstOpenCoords.filter(_ != chosenCoord)
-                    playRandomly(board, newR, player, remaining, f)
-                case Some(from) =>  //valid play
-                    val (newBoard, newLstOpenCoords) = play(board, player, from, chosenCoord, lstOpenCoords)
-                    (newBoard, newR, newLstOpenCoords, Some(from), Some(chosenCoord))
-            }
+    def playRandomly(board: Board, r: RandomWithState, player: Stone, lstOpenCoords: List[Coord2D], f: (List[Coord2D], RandomWithState) => (Coord2D, RandomWithState)): (Option[Board], RandomWithState, List[Coord2D], Option[Coord2D], Option[Coord2D]) = {   
+        val validCoords = validTargets(board, lstOpenCoords, player)    //find coordTo(empty spaces) that can be played
+        
+        if(validCoords.isEmpty){    //No coordTo to be played to, end of game
+            (None, r, Nil, None, None)
+        } else {
+            val(chosenCoordTo, newR1) = f(validCoords, r)   //chooses a random coordTo
+            val playablePieces = validSources(board, chosenCoordTo, player) //find pieces that can go to coordTo
+            val (chosenCoordFrom, newR2) = f(playablePieces, newR1) //chooses a random coordFrom
+            val (newBoard, newLstOpenCoords) = play(board, player, chosenCoordFrom, chosenCoordTo, lstOpenCoords)   //plays
 
+            (newBoard, newR2, newLstOpenCoords, Some(chosenCoordFrom), Some(chosenCoordTo))
         }
     }
-        //aux to playRandomly - find a playable piece
-    def findPlayablePiece(pieces: List[(Coord2D, Stone)], coordTo:Coord2D, player:Stone, board:Board):Option[Coord2D] = pieces match {
-        case Nil => None
-        case (coordFrom, stone)::tail =>
-            val coordMiddle = ((coordFrom._1 + coordTo._1)/2, (coordFrom._2 + coordTo._2)/2)
-            if(stone == player && validPlay(board, coordFrom, coordTo, coordMiddle, player))
-                Some(coordFrom)
-            else
-                findPlayablePiece(tail, coordTo, player, board)
+    //aux to playRandomly - returns all the coords that can go to a coord
+    def findPossiblePlays(coord: Coord2D): List[Coord2D] = {
+        val (line, col) = coord
+        List(
+            (line - 2, col),
+            (line + 2, col),
+            (line, col - 2),
+            (line, col + 2),
+        )
     }
+    //aux to playRandomly - find all valid coordFrom that can go to coordTo(empty space)
+    def validSources(board:Board, coordTo:Coord2D, player:Stone):List[Coord2D] = {
+        findPossiblePlays(coordTo).filter {coordFrom =>
+            val coordMiddle = ((coordFrom._1 + coordTo._1)/2, (coordFrom._2 + coordTo._2)/2)
+            validPlay(board, coordFrom, coordTo, coordMiddle, player)}
+    }
+    //aux to playRandomly - filter the list keeping just the coordTo that can be played to
+    def validTargets(board:Board, coords:List[Coord2D], player:Stone):List[Coord2D] = coords match {
+    case Nil => Nil //base case: there are no coordTo
+        case coordTo::tail =>   //case coordTo has valid moves, stay in the list
+            if(validSources(board, coordTo, player).nonEmpty)
+                coordTo::validTargets(board, tail, player)
+            else
+                validTargets(board, tail, player)
+    }
+    
 
     //====Initialize Board====
 
