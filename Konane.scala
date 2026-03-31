@@ -153,10 +153,10 @@ object Konane extends App{
     def validTargets(board:Board, coords:List[Coord2D], player:Stone):List[Coord2D] = coords match {
     case Nil => Nil //base case: there are no coordTo
         case coordTo::tail =>   //case coordTo has valid moves, stay in the list
-            if(validSources(board, coordTo, player).nonEmpty)
-                coordTo::validTargets(board, tail, player)
-            else
-                validTargets(board, tail, player)
+            validSources(board, coordTo, player) match {
+                case Nil => validTargets(board, tail, player)
+                case _ => coordTo::validTargets(board, tail, player)
+            }
     }
     
 
