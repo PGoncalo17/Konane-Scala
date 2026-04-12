@@ -97,12 +97,13 @@ object Konane extends App{
     //does a basic play
     def play(board: Board, player: Stone, coordFrom: Coord2D, coordTo: Coord2D, lstOpenCoords: List[Coord2D]): (Option[Board], List[Coord2D]) = {
         val coordMiddle = ((coordFrom._1 + coordTo._1)/2, (coordFrom._2 + coordTo._2)/2)
-        if(!validPlay(board, coordFrom, coordTo, coordMiddle, player)){ (None, lstOpenCoords)
-        }else{
-            val newBoard = board - coordFrom - coordMiddle + (coordTo -> player)    //Update the board
-            val addToLstOpenCoords = coordFrom::coordMiddle::lstOpenCoords          //Add coordFrom and coordMiddle to lstOpenCoords
-            val removeToOpenCoords = addToLstOpenCoords.filter(c => c != coordTo)   //Remove coordTo to lstOpenCoords
-            (Some(newBoard), removeToOpenCoords)     
+        validPlay(board, coordFrom, coordTo, coordMiddle, player) match { 
+            case false => (None, lstOpenCoords)
+            case true =>
+                val newBoard = board - coordFrom - coordMiddle + (coordTo -> player)    //Update the board
+                val addToLstOpenCoords = coordFrom::coordMiddle::lstOpenCoords          //Add coordFrom and coordMiddle to lstOpenCoords
+                val removeToOpenCoords = addToLstOpenCoords.filter(c => c != coordTo)   //Remove coordTo to lstOpenCoords
+                (Some(newBoard), removeToOpenCoords)     
         }
     }
         //aux to play
@@ -121,18 +122,41 @@ object Konane extends App{
     //Does a random play                                                                            //f equals to randomMove(...)
     def playRandomly(board: Board, r: RandomWithState, player: Stone, lstOpenCoords: List[Coord2D], f: (List[Coord2D], RandomWithState) => (Coord2D, RandomWithState)): (Option[Board], RandomWithState, List[Coord2D], Option[Coord2D], Option[Coord2D]) = {   
         val validCoords = validTargets(board, lstOpenCoords, player)    //find coordTo(empty spaces) that can be played
-        
-        if(validCoords.isEmpty){    //No coordTo to be played to, end of game
-            (None, r, Nil, None, None)
-        } else {
-            val(chosenCoordTo, newR1) = f(validCoords, r)   //chooses a random coordTo
-            val playablePieces = validSources(board, chosenCoordTo, player) //find pieces that can go to coordTo
-            val (chosenCoordFrom, newR2) = f(playablePieces, newR1) //chooses a random coordFrom
-            val (newBoard, newLstOpenCoords) = play(board, player, chosenCoordFrom, chosenCoordTo, lstOpenCoords)   //plays
+        validCoords match {
+            case Nil => (None, r, Nil, None, None)
+            case x::xs => 
+                val(chosenCoordTo, newR1) = f(validCoords, r)   //chooses a random coordTo
+                val playablePieces = validSources(board, chosenCoordTo, player) //find pieces that can go to coordTo
+                val (chosenCoordFrom, newR2) = f(playablePieces, newR1) //chooses a random coordFrom
+                val (firstPlayBoard, firstLstOpenCoords) = play(board, player, chosenCoordFrom, chosenCoordTo, lstOpenCoords)   //plays (first jump) 
 
-            (newBoard, newR2, newLstOpenCoords, Some(chosenCoordFrom), Some(chosenCoordTo))
-        }
+                // 3. aux functionm to take multiple jumps(Intern recursivity)
+                // makes all the jumps from the current piece
+                def processMultiJumps(currentBoard: Board, currentPos: Coord2D, currentOpen: List[Coord2D], currentR: RandomWithState): (Board, List[Coord2D], RandomWithState) = {
+                    canStillJump(currentBoard, player, currentPos) match {
+                        case false => (currentBoard, currentOpen, currentR)     //can´t jump
+                        case true =>
+                            val targets = findPossiblePlays(currentPos).filter { t =>
+                                val mid = ((currentPos._1 + t._1) / 2, (currentPos._2 + t._2) / 2)
+                                validPlay(currentBoard, currentPos, t, mid, player)
+                            }
+                            // chooses one possible jump and continues
+                            val (nextTarget, nextR) = f(targets, currentR)
+                            val (newBoard, no) = play(currentBoard, player, currentPos, nextTarget, currentOpen)
+                            processMultiJumps(newBoard.getOrElse(currentBoard), nextTarget, no, nextR)
+                    }
+                }
+
+                // Aplicamos a lógica ao tabuleiro que resultou do primeiro salto
+                val (finalBoard, finalLstOpenCoords, finalR) = firstPlayBoard match {
+                    case Some(b) => processMultiJumps(b, chosenCoordTo, firstLstOpenCoords, newR2)
+                    case None    => (board, lstOpenCoords, newR2)
+                }
+
+                (Some(finalBoard), finalR, finalLstOpenCoords, Some(chosenCoordFrom), Some(chosenCoordTo))
+        }        
     }
+    
     //aux to playRandomly - returns all the coords that can go to a coord
     def findPossiblePlays(coord: Coord2D): List[Coord2D] = {
         val (line, col) = coord
@@ -157,6 +181,26 @@ object Konane extends App{
                 case Nil => validTargets(board, tail, player)
                 case _ => coordTo::validTargets(board, tail, player)
             }
+    }
+
+    //aux do continue jumping if can
+    def canStillJump(board: Board, player: Stone, coordFrom: Coord2D): Boolean = {
+       // Find possible coordTo
+        val potentialTargets = findPossiblePlays(coordFrom)
+
+        // Create aux recursive function to evaluate the target list
+        def checkTargets(targets: List[Coord2D]): Boolean = targets match {
+            case Nil => false // can´t jump again
+            case target :: tail =>
+                val mid = ((coordFrom._1 + target._1) / 2, (coordFrom._2 + target._2) / 2)
+                
+                if (validPlay(board, coordFrom, target, mid, player)) 
+                    true // found possible jump
+                else
+                    checkTargets(tail) // try next on the list
+            
+        }
+        checkTargets(potentialTargets)
     }
     
 
