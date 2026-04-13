@@ -9,6 +9,11 @@ object Utils {
         println("\n(d)imension, (s)tart game or (q)uit.")
     }
 
+    //show prompt during game
+    def showPromptInGame(): Unit = {
+        println("\n(r)estart the game or q(uit).")
+    }
+
     //get user's input
     def getUserInput(): String = readLine.trim.toUpperCase
     
@@ -38,7 +43,11 @@ object Utils {
 
     //print board
     def printBoard(board: Board, lines: Int, cols: Int): Unit = {
-        val colIndexes = (0 until cols).toList      //Create list of numbers for each colunm
+        //aux recursive function to create a list of numbers for each colunm
+        def buildRange(n: Int): List[Int] = {
+            if(n >= cols) Nil else n::buildRange(n + 1)
+        }
+        val colIndexes = buildRange(0)      //Create list of numbers for each colunm
         val headderLetters = (colIndexes foldRight ("")){ (c, acc) =>   //foldRight to put numbers in right place
             val letter = (c < 10) match {
                 case true => s" $c " 
